@@ -103,6 +103,34 @@ const VISIBILITY_SLEEP_THRESHOLD_MS = 30_000;
  *  smooth for the running clock without blowing CPU. */
 const ELAPSED_TICK_MS = 250;
 
+/**
+ * #177 regression guard: final ASR / translation drain must never keep the
+ * stop pipeline pending forever. Native sidecars and local LLM translators can
+ * hang; stop() should preserve already-committed data and continue to segment /
+ * save instead of trapping the user on "processing final transcription".
+ */
+const STOP_FINALIZE_STEP_TIMEOUT_MS = 10_000;
+
+async function withStopTimeout<T>(
+    promise: Promise<T>,
+    label: string,
+    timeoutMs = STOP_FINALIZE_STEP_TIMEOUT_MS,
+): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => {
+                    reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+                }, timeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
 class RecordingSessionServiceImpl implements RecordingSessionService {
     private state: RecordingSessionState = { ...INITIAL_STATE, segments: [] };
     private subscribers = new Set<(s: RecordingSessionState) => void>();
@@ -500,7 +528,10 @@ class RecordingSessionServiceImpl implements RecordingSessionService {
         // everything that was already committed by step-2 onward.
         // ──────────────────────────────────────────────────────────────
         try {
-            await transcriptionService.stop();
+            await withStopTimeout(
+                transcriptionService.stop(),
+                'transcriptionService.stop',
+            );
         } catch (err) {
             console.error(
                 '[recordingSession.stop] step 1 (transcribe) failed:',
@@ -509,7 +540,10 @@ class RecordingSessionServiceImpl implements RecordingSessionService {
             // not fatal — keep going
         }
         try {
-            await translationPipeline.awaitDrain();
+            await withStopTimeout(
+                translationPipeline.awaitDrain(),
+                'translationPipeline.awaitDrain',
+            );
         } catch (err) {
             console.error(
                 '[recordingSession.stop] step 1 (translation drain) failed:',
@@ -1350,7 +1384,10 @@ class RecordingSessionServiceImpl implements RecordingSessionService {
         try {
             // 1. ASR drain
             try {
-                await transcriptionService.stop();
+                await withStopTimeout(
+                    transcriptionService.stop(),
+                    'mustFinalizeSync transcriptionService.stop',
+                );
             } catch (err) {
                 console.warn('[recordingSessionService] mustFinalizeSync: stop ASR failed:', err);
             }
