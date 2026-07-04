@@ -49,6 +49,29 @@ export function groupSubsBySections(
     const sortedSections = [...sections].sort(
         (a, b) => a.timestamp - b.timestamp,
     );
+    const firstSectionTs = sortedSections[0]?.timestamp ?? 0;
+    const lastSectionTs =
+        sortedSections[sortedSections.length - 1]?.timestamp ?? firstSectionTs;
+    const distinctSectionTimestamps = new Set(
+        sortedSections.map((s) => s.timestamp),
+    ).size;
+    const firstSubTs = sortedSubs[0]?.timestamp;
+
+    // #169 regression guard: sometimes TOC sections carry the correct
+    // lecture-relative breakpoints (e.g. 00:00, 05:35, ... 66:59), while
+    // every subtitle timestamp is shifted forward by a constant offset and
+    // therefore appears >= the final section timestamp. A naive
+    // latest-section walk then buckets the whole transcript under the last
+    // chapter. When that shape is detected, use an offset-corrected timestamp
+    // only for choosing the bucket; keep the original Subtitle object/time for
+    // rendering and seek behaviour.
+    const groupingOffset =
+        distinctSectionTimestamps > 1 &&
+        firstSubTs !== undefined &&
+        firstSubTs >= lastSectionTs
+            ? firstSubTs - firstSectionTs
+            : 0;
+
     const groups: Para[] = sortedSections.map((sec, i) => ({
         section: sec,
         sectionIndex: i,
@@ -57,9 +80,10 @@ export function groupSubsBySections(
     // pre-section bucket for any subs before the first section's timestamp
     const preSection: Para = { section: null, sectionIndex: -1, items: [] };
     for (const sub of sortedSubs) {
+        const groupingTimestamp = sub.timestamp - groupingOffset;
         let placed = false;
         for (let i = sortedSections.length - 1; i >= 0; i--) {
-            if (sub.timestamp >= sortedSections[i].timestamp) {
+            if (groupingTimestamp >= sortedSections[i].timestamp) {
                 groups[i].items.push(sub);
                 placed = true;
                 break;
