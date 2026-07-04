@@ -109,7 +109,7 @@ hf-hub = { version = "0.3", optional = true }
 # Tokenizer for text preprocessing
 tokenizers = "0.21"
 # Random number generation for sampling
-rand = "0.8"
+rand = "0.9"
 # SQLite database for data storage
 rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
 # Date and time handling
