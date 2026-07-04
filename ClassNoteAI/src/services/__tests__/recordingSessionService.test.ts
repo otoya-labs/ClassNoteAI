@@ -22,6 +22,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { recordingSessionService } from '../recordingSessionService';
+import { transcriptionService } from '../transcriptionService';
 import {
     RECORDING_CHANGE_EVENT,
     type RecordingChangeDetail,
@@ -302,6 +303,22 @@ describe('recordingSessionService — state machine', () => {
         expect(recordingSessionService.getState().error).toMatch(
             /subtitles save failed/i,
         );
+    });
+
+    it('stop() times out a hung final ASR drain and still completes', async () => {
+        vi.useFakeTimers();
+        vi.mocked(transcriptionService.stop).mockImplementationOnce(
+            () => new Promise<void>(() => undefined),
+        );
+
+        await recordingSessionService.start('c', 'l');
+        const stopPromise = recordingSessionService.stop();
+
+        await vi.advanceTimersByTimeAsync(10_000);
+        await stopPromise;
+
+        expect(recordingSessionService.getState().status).toBe('stopped');
+        expect(recordingSessionService.getState().stopPhase).toBe('done');
     });
 });
 
