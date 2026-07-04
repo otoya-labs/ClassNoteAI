@@ -127,12 +127,21 @@ class TranscriptionService {
               endTime: this.startTimeWall + event.audioEndSec * 1000,
               source: 'rough',
               translationSource: undefined,
+              speakerRole: event.speakerRole,
+              speakerId: event.speakerId,
               text: event.textEn,
             });
             break;
           }
           case 'translation_ready': {
+            // Persist into BOTH roughTranslation (the canonical rough-tier
+            // store) and displayTranslation (the UI's current pointer).
+            // Stop pipeline reads only roughTranslation/fineTranslation
+            // when serializing to DB — if we update displayTranslation
+            // alone, ReviewPage shows blank Chinese after stop because
+            // text_zh persisted as undefined. (Phase 7 Bug 2 root cause.)
             subtitleService.updateSegment(event.id, {
+              roughTranslation: event.textZh,
               displayTranslation: event.textZh,
               translationSource: 'rough',
             });
@@ -145,6 +154,7 @@ class TranscriptionService {
           case 'session_ended':
           case 'translation_failed':
           case 'session_started':
+          case 'pipeline_status':
             // No UI side-effect needed here; consumers that care
             // subscribe to subtitleStream directly.
             break;
