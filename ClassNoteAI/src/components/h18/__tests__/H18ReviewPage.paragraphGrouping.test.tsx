@@ -101,6 +101,55 @@ describe('groupSubsBySections · cp75.28', () => {
         expect(paras[0].items).toHaveLength(3);
     });
 
+    it('does not collapse everything into the final section when subtitle timestamps share a constant positive offset', () => {
+        // Regression for #169: Review could show a correct 13-item TOC while
+        // the transcript rendered as one giant paragraph under the last
+        // section. The failure shape is the mirror image of the cp75.28 all-0
+        // timestamps bug: section breakpoints are distinct, but every subtitle
+        // timestamp is shifted past the final section timestamp.
+        const subs: Subtitle[] = [
+            {
+                id: '1',
+                lecture_id: 'L',
+                timestamp: 300,
+                text_en: 'intro',
+                type: 'rough',
+                created_at: '',
+            },
+            {
+                id: '2',
+                lecture_id: 'L',
+                timestamp: 360,
+                text_en: 'middle',
+                type: 'rough',
+                created_at: '',
+            },
+            {
+                id: '3',
+                lecture_id: 'L',
+                timestamp: 420,
+                text_en: 'end',
+                type: 'rough',
+                created_at: '',
+            },
+        ];
+        const sections: Section[] = [
+            { title: 'A', content: '', timestamp: 0 },
+            { title: 'B', content: '', timestamp: 60 },
+            { title: 'C', content: '', timestamp: 120 },
+        ];
+
+        const paras = groupSubsBySections(subs, sections);
+
+        expect(paras).toHaveLength(3);
+        expect(paras.map((p) => p.section?.title)).toEqual(['A', 'B', 'C']);
+        expect(paras.map((p) => p.items.map((s) => s.id))).toEqual([
+            ['1'],
+            ['2'],
+            ['3'],
+        ]);
+    });
+
     it('returns single pre-section bucket when sections is empty', () => {
         const subs: Subtitle[] = [
             {
