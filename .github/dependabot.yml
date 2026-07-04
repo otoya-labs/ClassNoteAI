@@ -20,7 +20,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0  # paused by Reina per maintainer request
     groups:
       patch-updates:
         patterns: ["*"]
@@ -35,7 +35,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0  # paused by Reina per maintainer request
     ignore:
       # Vendor-patched or heavy native-build crates — manual bump only.
       # These fail in Dependabot's sandbox (no LLVM/MSVC/CUDA toolchain)
