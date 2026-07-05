@@ -14,6 +14,7 @@
  *     回饋是否要 hide-on-close
  */
 
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import s from './WindowControls.module.css';
 
 export interface WindowControlsProps {
@@ -23,12 +24,12 @@ export interface WindowControlsProps {
 }
 
 const callTauri = (method: 'close' | 'minimize' | 'toggleMaximize') => {
-  import('@tauri-apps/api/webviewWindow')
-    .then(({ getCurrentWebviewWindow }) => {
-      const win = getCurrentWebviewWindow();
-      return win[method]();
-    })
-    .catch(() => {});
+  try {
+    const win = getCurrentWindow();
+    void win[method]().catch(() => {});
+  } catch {
+    // Window controls are rendered in browser-backed tests too; keep them non-fatal.
+  }
 };
 
 export default function WindowControls({ onClose, onMinimize, onMaximize }: WindowControlsProps) {

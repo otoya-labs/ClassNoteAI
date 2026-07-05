@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import H18DeepApp from "./components/h18/H18DeepApp";
 import LoginScreen from "./components/LoginScreen";
@@ -596,6 +596,40 @@ function App() {
     };
   }, [appState, user]);
 
+  // Issue #178 — the custom traffic-light close button does not go through
+  // the OS window manager, so it must explicitly run the same recording-safe
+  // lifecycle as the Tauri close-request listener. For idle state we destroy
+  // the window directly because renderer-initiated `close()` is observable in
+  // Linux app-backed smoke as a no-op while WM_DELETE works.
+  const handleWindowControlClose = useCallback(async () => {
+    if (appState !== 'ready' || !user) return;
+    const win = getCurrentWindow();
+    const state = recordingSessionService.getState();
+    const recording = state.status === 'recording' || state.status === 'paused';
+
+    if (!recording) {
+      await win.destroy();
+      return;
+    }
+
+    await handleCloseRequest(
+      { preventDefault: () => undefined },
+      {
+        recordingSession: {
+          getState: () => recordingSessionService.getState(),
+          mustFinalizeSync: () => recordingSessionService.mustFinalizeSync(),
+        },
+        confirm: { ask: (req) => confirmService.ask(req) },
+        toast: {
+          success: (message, detail) => toastService.success(message, detail),
+          warning: (message, detail) => toastService.warning(message, detail),
+        },
+        win: { close: () => win.destroy() },
+        sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+      },
+    );
+  }, [appState, user]);
+
   const handleSetupComplete = () => {
     setAppState('ready');
   };
@@ -624,7 +658,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <H18DeepApp />
+      <H18DeepApp onRequestClose={handleWindowControlClose} />
       <RecoveryPromptModal
         sessions={recoverableSessions}
         onSessionResolved={(id) =>
