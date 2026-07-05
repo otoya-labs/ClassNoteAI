@@ -20,8 +20,8 @@ const closeMock = vi.fn(() => Promise.resolve());
 const minimizeMock = vi.fn(() => Promise.resolve());
 const toggleMaximizeMock = vi.fn(() => Promise.resolve());
 
-vi.mock('@tauri-apps/api/webviewWindow', () => ({
-  getCurrentWebviewWindow: () => ({
+vi.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: () => ({
     close: closeMock,
     minimize: minimizeMock,
     toggleMaximize: toggleMaximizeMock,
@@ -89,7 +89,7 @@ describe('WindowControls · prop callbacks', () => {
 });
 
 describe('WindowControls · default Tauri behavior', () => {
-  it('calls webviewWindow.close() when no onClose prop supplied', async () => {
+  it('calls window.close() when no onClose prop supplied', async () => {
     const user = userEvent.setup();
     render(<WindowControls />);
     await user.click(screen.getByRole('button', { name: '關閉視窗' }));

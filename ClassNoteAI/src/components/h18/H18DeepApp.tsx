@@ -70,7 +70,11 @@ import s from './H18DeepApp.module.css';
 
 // (Placeholder helper removed in P6.9 — every nav target now has a real component)
 
-export default function H18DeepApp() {
+export interface H18DeepAppProps {
+    onRequestClose?: () => void;
+}
+
+export default function H18DeepApp({ onRequestClose }: H18DeepAppProps) {
     const [activeNav, setActiveNav] = useState<H18ActiveNav>('home');
     const [overlayNav, setOverlayNav] = useState<H18OverlayNav>(null);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -940,6 +944,7 @@ export default function H18DeepApp() {
         <div className={s.root}>
             <H18TopBar
                 showWindowControls
+                onRequestClose={onRequestClose}
                 onOpenSearch={() => setOverlayNav('search')}
                 effectiveTheme={theme}
                 onToggleTheme={() => void toggleTheme()}

@@ -39,6 +39,8 @@ export interface H18TopBarProps {
     /** Inbox unread count (留白 — schema 沒做時固定 0)。 */
     inboxCount?: number;
     onOpenInbox?: () => void;
+    /** Custom close lifecycle owner (App wires recording-safe close handling). */
+    onRequestClose?: () => void;
     /** Currently active recording session, displayed as center island. */
     activeRecording?: ActiveRecording | null;
 }
@@ -72,6 +74,7 @@ export default function H18TopBar({
     onToggleTheme,
     inboxCount = 0,
     onOpenInbox,
+    onRequestClose,
     activeRecording,
 }: H18TopBarProps) {
     const [now, setNow] = useState(() => formatDateTime(new Date()));
@@ -102,7 +105,7 @@ export default function H18TopBar({
                 {showWindowControls && (
                     <>
                         <span data-tauri-drag-region="false">
-                            <WindowControls />
+                            <WindowControls onClose={onRequestClose} />
                         </span>
                         <div className={s.divider} />
                     </>
